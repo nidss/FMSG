@@ -7,6 +7,7 @@ import {
   LayoutTemplate,
   MessageCircle,
   Redo2,
+  Save,
   Send,
   Undo2,
 } from 'lucide-react'
@@ -60,6 +61,9 @@ export function Toolbar() {
       </button>
       <button className="btn" onClick={() => setModal('templates')}>
         <LayoutTemplate size={14} /> Templates
+      </button>
+      <button className="btn" onClick={() => setModal('save')} title="เซฟงานปัจจุบันเป็น template ของฉัน">
+        <Save size={14} /> บันทึก
       </button>
       {root.type === 'bubble' && (
         <button className="btn" onClick={convertToCarousel} title="แปลงเป็น carousel หลายใบ">
