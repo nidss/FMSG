@@ -1,4 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { TextInput } from '@astryxdesign/core/TextInput'
+import { TextArea } from '@astryxdesign/core/TextArea'
+import { Selector } from '@astryxdesign/core/Selector'
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput'
+import { NumberInput } from '@astryxdesign/core/NumberInput'
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -28,20 +33,22 @@ export function TextField({
   const commit = () => {
     if (v !== value) onCommit(v)
   }
+  if (multiline) {
+    return (
+      <div onBlur={commit}>
+        <TextArea label={label} value={v} rows={3} placeholder={placeholder} onChange={setV} size="sm" />
+      </div>
+    )
+  }
   return (
-    <Field label={label}>
-      {multiline ? (
-        <textarea value={v} rows={3} placeholder={placeholder} onChange={(e) => setV(e.target.value)} onBlur={commit} />
-      ) : (
-        <input
-          value={v}
-          placeholder={placeholder}
-          onChange={(e) => setV(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-        />
-      )}
-    </Field>
+    <div
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur?.()
+      }}
+    >
+      <TextInput label={label} value={v} placeholder={placeholder} onChange={setV} size="sm" />
+    </div>
   )
 }
 
@@ -58,17 +65,18 @@ export function SelectField({
   onCommit: (v: string) => void
   allowEmpty?: boolean
 }) {
+  const opts = [
+    ...(allowEmpty ? [{ value: '__default__', label: '(ค่าเริ่มต้น)' }] : []),
+    ...options.map((o) => ({ value: o, label: o })),
+  ]
   return (
-    <Field label={label}>
-      <select value={value ?? ''} onChange={(e) => onCommit(e.target.value)}>
-        {allowEmpty && <option value="">(ค่าเริ่มต้น)</option>}
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-    </Field>
+    <Selector
+      label={label}
+      size="sm"
+      options={opts}
+      value={value ?? (allowEmpty ? '__default__' : undefined)}
+      onChange={(v: any) => onCommit(v === '__default__' ? '' : (v ?? ''))}
+    />
   )
 }
 
@@ -83,34 +91,33 @@ export function ColorField({
 }) {
   const [v, setV] = useState(value ?? '')
   useEffect(() => setV(value ?? ''), [value])
-  const timer = useRef<number>()
+  const timer = useRef<number>(undefined)
   const commitDebounced = (val: string) => {
     setV(val)
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => onCommit(val), 250)
   }
   return (
-    <Field label={label}>
+    <div className="color-field-wrap">
+      <span className="field-label">{label}</span>
       <div className="color-field">
         <input
           type="color"
           value={/^#[0-9a-fA-F]{6}$/.test(v) ? v : '#000000'}
           onChange={(e) => commitDebounced(e.target.value)}
+          aria-label={`${label} (color picker)`}
         />
-        <input
-          value={v}
-          placeholder="#RRGGBB"
-          onChange={(e) => setV(e.target.value)}
+        <div
+          style={{ flex: 1, minWidth: 0 }}
           onBlur={() => onCommit(v)}
-          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-        />
-        {v && (
-          <button className="mini-btn" title="ล้างค่า" onClick={() => onCommit('')}>
-            ✕
-          </button>
-        )}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur?.()
+          }}
+        >
+          <TextInput label={label} isLabelHidden value={v} placeholder="#RRGGBB" onChange={setV} size="sm" hasClear />
+        </div>
       </div>
-    </Field>
+    </div>
   )
 }
 
@@ -128,15 +135,14 @@ export function NumberField({
   max?: number
 }) {
   return (
-    <Field label={label}>
-      <input
-        type="number"
-        min={min}
-        max={max}
-        value={value ?? ''}
-        onChange={(e) => onCommit(e.target.value === '' ? undefined : Number(e.target.value))}
-      />
-    </Field>
+    <NumberInput
+      label={label}
+      size="sm"
+      min={min}
+      max={max}
+      value={value ?? null}
+      onChange={(v: number | null | undefined) => onCommit(v === null || v === undefined ? undefined : v)}
+    />
   )
 }
 
@@ -149,10 +155,5 @@ export function ToggleField({
   value: boolean | undefined
   onCommit: (v: boolean) => void
 }) {
-  return (
-    <label className="field field-row">
-      <input type="checkbox" checked={!!value} onChange={(e) => onCommit(e.target.checked)} />
-      <span className="field-label">{label}</span>
-    </label>
-  )
+  return <CheckboxInput label={label} value={!!value} onChange={(c: boolean) => onCommit(c)} size="sm" />
 }

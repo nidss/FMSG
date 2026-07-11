@@ -1,9 +1,13 @@
 import React, { useMemo, useState } from 'react'
-import { Save, X } from 'lucide-react'
+import { Save } from 'lucide-react'
+import { Button } from '@astryxdesign/core/Button'
+import { TextInput } from '@astryxdesign/core/TextInput'
+import { Banner } from '@astryxdesign/core/Banner'
 import { useDesigner } from '../store'
 import { useUi } from '../uiStore'
 import { stripUids } from '../flex/uid'
 import { loadUserTemplates, saveUserTemplate } from '../flex/userTemplates'
+import { AppModal } from './AppModal'
 
 export function SaveTemplateModal() {
   const modal = useUi((s) => s.modal)
@@ -22,68 +26,54 @@ export function SaveTemplateModal() {
   const trimmed = name.trim()
   const willOverwrite = existingNames.includes(trimmed)
 
+  const close = () => {
+    setModal(null)
+    setName('')
+    setSaved(false)
+    setError(null)
+  }
+
   const doSave = () => {
     if (!trimmed) {
       setError('ตั้งชื่อ template ก่อนนะครับ')
       return
     }
-    const result = saveUserTemplate({
-      name: trimmed,
-      json: stripUids(root),
-      altText,
-      dataText,
-    })
+    const result = saveUserTemplate({ name: trimmed, json: stripUids(root), altText, dataText })
     if (result === null) {
       setError('บันทึกไม่สำเร็จ — พื้นที่เก็บของ browser เต็ม (ลองลบ template เก่า หรือเปลี่ยนรูป data URI เป็น URL)')
       return
     }
     setSaved(true)
-    setTimeout(() => {
-      setModal(null)
-      setName('')
-      setSaved(false)
-      setError(null)
-    }, 700)
+    setTimeout(close, 700)
   }
 
   return (
-    <div className="modal-overlay" onClick={() => setModal(null)}>
-      <div className="modal" style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <b>บันทึกเป็น template ของฉัน</b>
-          <button className="icon-btn" onClick={() => setModal(null)}>
-            <X size={16} />
-          </button>
+    <AppModal title="บันทึกเป็น template ของฉัน" width={440} onClose={close}>
+      <div className="modal-stack">
+        <div
+          onKeyDown={(e) => e.key === 'Enter' && doSave()}
+        >
+          <TextInput
+            label="ชื่อ template"
+            value={name}
+            placeholder="เช่น ใบเสร็จร้านกาแฟ v2"
+            hasAutoFocus
+            onChange={(v: string) => {
+              setName(v)
+              setError(null)
+            }}
+            status={error ? { type: 'error', message: error } : undefined}
+          />
         </div>
-        <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label className="field">
-            <span className="field-label">ชื่อ template</span>
-            <input
-              autoFocus
-              value={name}
-              placeholder="เช่น ใบเสร็จร้านกาแฟ v2"
-              onChange={(e) => {
-                setName(e.target.value)
-                setError(null)
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && doSave()}
-            />
-          </label>
-          {willOverwrite && !saved && (
-            <div className="hint">⚠️ มี template ชื่อนี้อยู่แล้ว — การบันทึกจะเขียนทับของเดิม</div>
-          )}
-          <div className="hint">
-            จะบันทึกทั้งดีไซน์, altText และ data source ไว้ใน browser เครื่องนี้ — เปิดใช้ได้จากปุ่ม Templates
-          </div>
-          {error && <div className="status error">{error}</div>}
-          {saved && <div className="status ok">บันทึกแล้ว ✓</div>}
-          <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
-            <button className="btn primary" onClick={doSave} disabled={saved}>
-              <Save size={14} /> บันทึก
-            </button>
-          </div>
+        {willOverwrite && !saved && <Banner status="warning" title="มี template ชื่อนี้อยู่แล้ว — การบันทึกจะเขียนทับของเดิม" />}
+        <div className="hint">
+          จะบันทึกทั้งดีไซน์, altText และ data source ไว้ใน browser เครื่องนี้ — เปิดใช้ได้จากปุ่ม Templates
+        </div>
+        {saved && <Banner status="success" title="บันทึกแล้ว ✓" />}
+        <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
+          <Button label="บันทึก" icon={<Save size={14} />} variant="primary" onClick={doSave} isDisabled={saved} />
         </div>
       </div>
-    </div>
+    </AppModal>
   )
 }

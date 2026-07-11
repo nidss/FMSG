@@ -8,8 +8,12 @@ import {
   FolderOpen,
   RefreshCw,
   Upload,
-  X,
 } from 'lucide-react'
+import { Button } from '@astryxdesign/core/Button'
+import { TextInput } from '@astryxdesign/core/TextInput'
+import { Banner } from '@astryxdesign/core/Banner'
+import { Collapsible } from '@astryxdesign/core/Collapsible'
+import { Card } from '@astryxdesign/core/Card'
 import { useUi } from '../uiStore'
 import { useDesigner } from '../store'
 import { importTemplates, loadUserTemplates, makeBundle, parseBundle } from '../flex/userTemplates'
@@ -26,6 +30,7 @@ import {
   type DriveFileInfo,
 } from '../gdrive'
 import { exportMessageJson } from '../flex/export'
+import { AppModal } from './AppModal'
 
 // Prefilled from the folder the user shared; editable in the UI.
 const DEFAULT_FOLDER_ID = '1WoUcUOa_uCV53GKPGmyeUOpviRmQtStB'
@@ -39,6 +44,7 @@ export function SyncModal() {
   const setAltText = useDesigner((s) => s.setAltText)
   const root = useDesigner((s) => s.root)
   const altText = useDesigner((s) => s.altText)
+  const setDataText = useDesigner((s) => s.setDataText)
   const fileRef = useRef<HTMLInputElement>(null)
   const [designName, setDesignName] = useState('')
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
@@ -82,12 +88,17 @@ export function SyncModal() {
     localStorage.setItem('fmsg-gdrive-folder', folderId.trim())
   }
 
-  const drivePush = async () => {
+  const requireClientId = () => {
     saveDriveSettings()
     if (!clientId.trim()) {
       setStatus({ kind: 'error', msg: 'ใส่ Google OAuth Client ID ก่อน (ดูวิธีสร้างด้านล่าง)' })
-      return
+      return false
     }
+    return true
+  }
+
+  const drivePush = async () => {
+    if (!requireClientId()) return
     setStatus({ kind: 'busy', msg: 'กำลังเชื่อมต่อ Google…' })
     try {
       const token = await getAccessToken(clientId.trim())
@@ -100,11 +111,7 @@ export function SyncModal() {
   }
 
   const driveSaveCurrent = async () => {
-    saveDriveSettings()
-    if (!clientId.trim()) {
-      setStatus({ kind: 'error', msg: 'ใส่ Google OAuth Client ID ก่อน (ดูวิธีสร้างด้านล่าง)' })
-      return
-    }
+    if (!requireClientId()) return
     let name = designName.trim() || altText.trim() || 'flex-design'
     if (!name.toLowerCase().endsWith('.json')) name += '.json'
     setStatus({ kind: 'busy', msg: `กำลังเซฟ ${name} ขึ้น Drive…` })
@@ -113,7 +120,6 @@ export function SyncModal() {
       await uploadJsonToDrive(token, folderId.trim(), name, exportMessageJson(root, altText))
       setStatus({ kind: 'ok', msg: `เซฟ "${name}" ขึ้น Drive แล้ว — เปิดกลับได้จาก "เปิดไฟล์จาก Drive…"` })
       if (driveFiles) {
-        // refresh the current browse location so the new file shows up
         const current = drivePath[drivePath.length - 1]?.id ?? folderId.trim()
         setDriveFiles(await listJsonFiles(token, current))
       }
@@ -131,9 +137,7 @@ export function SyncModal() {
       setDriveFiles(files)
       setDrivePath(path)
       setStatus(
-        files.length
-          ? { kind: 'idle' }
-          : { kind: 'error', msg: 'โฟลเดอร์นี้ว่าง (ไม่มีโฟลเดอร์ย่อยหรือไฟล์ .json)' },
+        files.length ? { kind: 'idle' } : { kind: 'error', msg: 'โฟลเดอร์นี้ว่าง (ไม่มีโฟลเดอร์ย่อยหรือไฟล์ .json)' },
       )
     } catch (e: any) {
       setStatus({ kind: 'error', msg: String(e.message ?? e) })
@@ -141,11 +145,7 @@ export function SyncModal() {
   }
 
   const driveBrowse = async () => {
-    saveDriveSettings()
-    if (!clientId.trim()) {
-      setStatus({ kind: 'error', msg: 'ใส่ Google OAuth Client ID ก่อน (ดูวิธีสร้างด้านล่าง)' })
-      return
-    }
+    if (!requireClientId()) return
     await browseInto([{ id: folderId.trim(), name: 'โฟลเดอร์หลัก' }])
   }
 
@@ -173,11 +173,7 @@ export function SyncModal() {
   }
 
   const drivePull = async () => {
-    saveDriveSettings()
-    if (!clientId.trim()) {
-      setStatus({ kind: 'error', msg: 'ใส่ Google OAuth Client ID ก่อน (ดูวิธีสร้างด้านล่าง)' })
-      return
-    }
+    if (!requireClientId()) return
     setStatus({ kind: 'busy', msg: 'กำลังเชื่อมต่อ Google…' })
     try {
       const token = await getAccessToken(clientId.trim())
@@ -194,75 +190,77 @@ export function SyncModal() {
     }
   }
 
-  return (
-    <div className="modal-overlay" onClick={() => setModal(null)}>
-      <div className="modal" style={{ width: 620, maxWidth: '95vw' }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <b>Sync templates</b> <span className="hint-inline">(บันทึกไว้ {count} รายการ)</span>
-          <button className="icon-btn" onClick={() => setModal(null)}>
-            <X size={16} />
-          </button>
-        </div>
-        <div style={{ padding: '0 16px 14px', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div className="group">
-            <div className="group-title">ไฟล์ (ย้ายข้ามเครื่องเองได้ทันที ไม่ต้องตั้งค่า)</div>
-            <div className="btn-row wrap">
-              <button className="btn" onClick={exportFile}>
-                <Download size={14} /> Export ทั้งชุดเป็นไฟล์ .json
-              </button>
-              <button className="btn" onClick={() => fileRef.current?.click()}>
-                <Upload size={14} /> Import จากไฟล์ (merge)
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="application/json,.json"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) importFile(f)
-                  e.target.value = ''
-                }}
-              />
-            </div>
-            <div className="hint">Import จะ merge เข้ากับของเดิม — template ชื่อซ้ำจะถูกทับด้วยของในไฟล์</div>
-          </div>
+  const busy = status.kind === 'busy'
 
-          <div className="group">
-            <div className="group-title">Google Drive (sync ข้ามเครื่องอัตโนมัติ)</div>
-            <label className="field">
-              <span className="field-label">Google OAuth Client ID</span>
-              <input
-                value={clientId}
-                placeholder="xxxxxxxx.apps.googleusercontent.com"
-                onChange={(e) => setClientId(e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span className="field-label">Drive Folder ID (จากลิงก์โฟลเดอร์)</span>
-              <input value={folderId} onChange={(e) => setFolderId(e.target.value)} />
-            </label>
+  return (
+    <AppModal title="Sync templates" subtitle={`บันทึกไว้ ${count} รายการ`} width={640} onClose={() => setModal(null)}>
+      <div className="modal-stack">
+        <Card padding={2}>
+          <div className="group-title">ไฟล์ (ย้ายข้ามเครื่องเองได้ทันที ไม่ต้องตั้งค่า)</div>
+          <div className="btn-row wrap" style={{ paddingTop: 8 }}>
+            <Button label="Export ทั้งชุดเป็นไฟล์ .json" icon={<Download size={14} />} size="sm" onClick={exportFile} />
+            <Button label="Import จากไฟล์ (merge)" icon={<Upload size={14} />} size="sm" onClick={() => fileRef.current?.click()} />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) importFile(f)
+                e.target.value = ''
+              }}
+            />
+          </div>
+          <div className="hint" style={{ paddingTop: 6 }}>
+            Import จะ merge เข้ากับของเดิม — template ชื่อซ้ำจะถูกทับด้วยของในไฟล์
+          </div>
+        </Card>
+
+        <Card padding={2}>
+          <div className="group-title">Google Drive (sync ข้ามเครื่องอัตโนมัติ)</div>
+          <div className="modal-stack" style={{ paddingTop: 8 }}>
+            <TextInput
+              label="Google OAuth Client ID"
+              value={clientId}
+              placeholder="xxxxxxxx.apps.googleusercontent.com"
+              onChange={setClientId}
+              size="sm"
+            />
+            <TextInput label="Drive Folder ID (จากลิงก์โฟลเดอร์)" value={folderId} onChange={setFolderId} size="sm" />
             <div className="btn-row wrap">
-              <button className="btn primary" disabled={status.kind === 'busy'} onClick={drivePush}>
-                <CloudUpload size={14} /> อัปโหลดขึ้น Drive
-              </button>
-              <button className="btn" disabled={status.kind === 'busy'} onClick={drivePull}>
-                <CloudDownload size={14} /> ดึงจาก Drive (merge)
-              </button>
-              <button className="btn" disabled={status.kind === 'busy'} onClick={driveBrowse}>
-                {driveFiles ? <RefreshCw size={14} /> : <FolderOpen size={14} />} เปิดไฟล์จาก Drive…
-              </button>
+              <Button label="อัปโหลดขึ้น Drive" icon={<CloudUpload size={14} />} variant="primary" size="sm" isDisabled={busy} onClick={drivePush} />
+              <Button label="ดึงจาก Drive (merge)" icon={<CloudDownload size={14} />} size="sm" isDisabled={busy} onClick={drivePull} />
+              <Button
+                label="เปิดไฟล์จาก Drive…"
+                icon={driveFiles ? <RefreshCw size={14} /> : <FolderOpen size={14} />}
+                size="sm"
+                isDisabled={busy}
+                onClick={driveBrowse}
+              />
             </div>
             <div className="save-design-row">
-              <input
-                value={designName}
-                placeholder={`ชื่อไฟล์ของงานนี้ (ว่าง = "${(altText.trim() || 'flex-design').slice(0, 30)}.json")`}
-                onChange={(e) => setDesignName(e.target.value)}
+              <div
+                style={{ flex: 1, minWidth: 0 }}
                 onKeyDown={(e) => e.key === 'Enter' && driveSaveCurrent()}
+              >
+                <TextInput
+                  label="ชื่อไฟล์ของงานนี้"
+                  isLabelHidden
+                  value={designName}
+                  placeholder={`ชื่อไฟล์ของงานนี้ (ว่าง = "${(altText.trim() || 'flex-design').slice(0, 30)}.json")`}
+                  onChange={setDesignName}
+                  size="sm"
+                />
+              </div>
+              <Button
+                label="เซฟงานปัจจุบัน"
+                icon={<CloudUpload size={14} />}
+                size="sm"
+                isDisabled={busy}
+                tooltip="เซฟงานที่เปิดอยู่เป็นไฟล์ .json แยกในโฟลเดอร์ Drive"
+                onClick={driveSaveCurrent}
               />
-              <button className="btn" disabled={status.kind === 'busy'} onClick={driveSaveCurrent} title="เซฟงานที่เปิดอยู่เป็นไฟล์ .json แยกในโฟลเดอร์ Drive">
-                <CloudUpload size={14} /> เซฟงานปัจจุบัน
-              </button>
             </div>
             {driveFiles && drivePath.length > 0 && (
               <div className="drive-breadcrumb">
@@ -271,7 +269,7 @@ export function SyncModal() {
                     {i > 0 && <span className="crumb-sep">›</span>}
                     <button
                       className="crumb"
-                      disabled={status.kind === 'busy' || i === drivePath.length - 1}
+                      disabled={busy || i === drivePath.length - 1}
                       onClick={() => browseInto(drivePath.slice(0, i + 1))}
                     >
                       {p.name}
@@ -288,14 +286,14 @@ export function SyncModal() {
                       key={f.id}
                       className="drive-file drive-folder"
                       onClick={() => browseInto([...drivePath, { id: f.id, name: f.name }])}
-                      disabled={status.kind === 'busy'}
+                      disabled={busy}
                     >
                       <Folder size={14} />
                       <span className="drive-file-name">{f.name}</span>
                       <span className="drive-file-time">โฟลเดอร์ ›</span>
                     </button>
                   ) : (
-                    <button key={f.id} className="drive-file" onClick={() => openDriveFile(f)} disabled={status.kind === 'busy'}>
+                    <button key={f.id} className="drive-file" onClick={() => openDriveFile(f)} disabled={busy}>
                       <FileJson size={14} />
                       <span className="drive-file-name">{f.name}</span>
                       <span className="drive-file-time">{new Date(f.modifiedTime).toLocaleString('th-TH')}</span>
@@ -310,8 +308,7 @@ export function SyncModal() {
                 เดี่ยวจะเปิดเข้า editor
               </div>
             )}
-            <details>
-              <summary style={{ cursor: 'pointer', fontSize: 12 }}>วิธีตั้งค่า (ทำครั้งเดียว ~5 นาที)</summary>
+            <Collapsible trigger="วิธีตั้งค่า (ทำครั้งเดียว ~5 นาที)" defaultIsOpen={false}>
               <div className="hint" style={{ paddingTop: 6 }}>
                 1. เข้า <b>console.cloud.google.com</b> → สร้าง project (หรือใช้ของเดิม)
                 <br />
@@ -322,25 +319,22 @@ export function SyncModal() {
                 4. เพิ่ม Authorized JavaScript origins: <code>https://nidss.github.io</code> (และ{' '}
                 <code>http://localhost:5173</code> ถ้าจะใช้ตอน dev)
                 <br />
-                5. ถ้าถามให้ตั้งค่า consent screen: เลือก External แล้วเพิ่มอีเมลตัวเองเป็น Test user
+                5. Consent screen: เลือก External แล้ว<b>เพิ่มอีเมลตัวเองเป็น Test user</b>
                 <br />
-                6. คัดลอก Client ID มาวางด้านบน — เสร็จแล้ว! Client ID/Folder ID จะถูกจำไว้ในเครื่องนี้
+                6. คัดลอก Client ID มาวางด้านบน — Client ID/Folder ID จะถูกจำไว้ในเครื่องนี้
                 <br />
                 <br />
                 การ sync จะเขียนไฟล์ <code>{DRIVE_FILE_NAME}</code> ไว้ในโฟลเดอร์ที่กำหนด — เครื่องอื่นล็อกอิน
                 Google บัญชีเดียวกัน (หรือมีสิทธิ์เข้าโฟลเดอร์) แล้วกด "ดึงจาก Drive" ได้เลย
               </div>
-            </details>
+            </Collapsible>
           </div>
+        </Card>
 
-          {status.kind !== 'idle' && (
-            <div className={`status ${status.kind === 'error' ? 'error' : 'ok'}`}>
-              {status.kind === 'busy' ? '⏳ ' : ''}
-              {status.msg}
-            </div>
-          )}
-        </div>
+        {status.kind === 'busy' && <Banner status="info" title={status.msg!} />}
+        {status.kind === 'ok' && <Banner status="success" title={status.msg!} />}
+        {status.kind === 'error' && <Banner status="error" title={status.msg!} />}
       </div>
-    </div>
+    </AppModal>
   )
 }

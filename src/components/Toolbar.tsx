@@ -13,6 +13,10 @@ import {
   Send,
   Undo2,
 } from 'lucide-react'
+import { Button } from '@astryxdesign/core/Button'
+import { IconButton } from '@astryxdesign/core/IconButton'
+import { TextInput } from '@astryxdesign/core/TextInput'
+import { Divider } from '@astryxdesign/core/Divider'
 import { useDesigner } from '../store'
 import { useUi } from '../uiStore'
 
@@ -36,15 +40,16 @@ export function Toolbar() {
         <MessageCircle size={18} />
         <b>Flex Designer</b>
       </div>
-      <button className="btn" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)">
-        <Undo2 size={14} />
-      </button>
-      <button className="btn" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Shift+Z)">
-        <Redo2 size={14} />
-      </button>
-      <span className="divider" />
-      <button
-        className="btn"
+      <IconButton label="Undo (Ctrl+Z)" icon={<Undo2 size={15} />} variant="ghost" size="sm" isDisabled={!canUndo} onClick={undo} />
+      <IconButton label="Redo (Ctrl+Shift+Z)" icon={<Redo2 size={15} />} variant="ghost" size="sm" isDisabled={!canRedo} onClick={redo} />
+      <span className="divider-v">
+        <Divider orientation="vertical" />
+      </span>
+      <Button
+        label="ใหม่"
+        icon={<FilePlus2 size={15} />}
+        variant="ghost"
+        size="sm"
         onClick={() => {
           if (confirm('เริ่มงานใหม่? งานปัจจุบันจะถูกแทนที่ (undo ได้)')) {
             loadRoot({
@@ -58,41 +63,30 @@ export function Toolbar() {
             })
           }
         }}
-      >
-        <FilePlus2 size={14} /> ใหม่
-      </button>
-      <button className="btn" onClick={() => setModal('templates')}>
-        <LayoutTemplate size={14} /> Templates
-      </button>
-      <button className="btn" onClick={() => setModal('save')} title="เซฟงานปัจจุบันเป็น template ของฉัน">
-        <Save size={14} /> บันทึก
-      </button>
-      <button className="btn" onClick={() => setModal('sync')} title="Export/Import ไฟล์ และ sync ผ่าน Google Drive">
-        <CloudUpload size={14} /> Sync
-      </button>
-      <button className="btn" onClick={() => setModal('paste')} title="วางโค้ด flex JSON จากที่อื่นมาแสดงและแก้ต่อ">
-        <ClipboardPaste size={14} /> วาง JSON
-      </button>
+      />
+      <Button label="Templates" icon={<LayoutTemplate size={15} />} variant="ghost" size="sm" onClick={() => setModal('templates')} />
+      <Button label="บันทึก" icon={<Save size={15} />} variant="ghost" size="sm" tooltip="เซฟงานปัจจุบันเป็น template ของฉัน" onClick={() => setModal('save')} />
+      <Button label="Sync" icon={<CloudUpload size={15} />} variant="ghost" size="sm" tooltip="Export/Import ไฟล์ และ sync ผ่าน Google Drive" onClick={() => setModal('sync')} />
+      <Button label="วาง JSON" icon={<ClipboardPaste size={15} />} variant="ghost" size="sm" tooltip="วางโค้ด flex JSON จากที่อื่นมาแสดงและแก้ต่อ" onClick={() => setModal('paste')} />
       {root.type === 'bubble' && (
-        <button className="btn" onClick={convertToCarousel} title="แปลงเป็น carousel หลายใบ">
-          <GalleryHorizontalEnd size={14} /> ทำเป็น Carousel
-        </button>
+        <Button label="ทำเป็น Carousel" icon={<GalleryHorizontalEnd size={15} />} variant="ghost" size="sm" onClick={convertToCarousel} />
       )}
-      <span className="divider" />
-      <label className="alt-text">
-        <span>altText</span>
-        <input value={altText} onChange={(e) => setAltText(e.target.value)} placeholder="ข้อความ fallback" />
-      </label>
+      <span className="divider-v">
+        <Divider orientation="vertical" />
+      </span>
+      <div className="alt-text">
+        <TextInput label="altText" isLabelHidden placeholder="altText (ข้อความ fallback)" value={altText} onChange={setAltText} size="sm" />
+      </div>
       <span style={{ flex: 1 }} />
-      <button className={`btn${showData ? ' active' : ''}`} onClick={toggleData}>
-        <Database size={14} /> Data
-      </button>
-      <button className="btn" onClick={() => setModal('export')}>
-        <Braces size={14} /> Export
-      </button>
-      <button className="btn primary" onClick={() => setModal('send')}>
-        <Send size={14} /> ส่งเข้า LINE
-      </button>
+      <Button
+        label="Data"
+        icon={<Database size={15} />}
+        variant={showData ? 'secondary' : 'ghost'}
+        size="sm"
+        onClick={toggleData}
+      />
+      <Button label="Export" icon={<Braces size={15} />} variant="secondary" size="sm" onClick={() => setModal('export')} />
+      <Button label="ส่งเข้า LINE" icon={<Send size={15} />} variant="primary" size="sm" onClick={() => setModal('send')} />
     </div>
   )
 }

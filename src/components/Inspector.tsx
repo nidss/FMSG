@@ -1,5 +1,7 @@
 import React, { useRef } from 'react'
 import { ArrowDown, ArrowUp, Copy, ImagePlus, Shapes, Trash2 } from 'lucide-react'
+import { Button } from '@astryxdesign/core/Button'
+import { IconButton } from '@astryxdesign/core/IconButton'
 import { getSelectedNode, useDesigner } from '../store'
 import { useUi } from '../uiStore'
 import type { AnyNode, BubbleNode, FlexAction } from '../flex/types'
@@ -41,17 +43,21 @@ function UrlWithUpload({ node, prop, allowIconPicker }: { node: AnyNode; prop: s
     <>
       <TextField label="URL รูปภาพ" value={url} onCommit={(v) => updateNode(node._uid, { [prop]: v })} multiline />
       <div className="btn-row">
-        <button
-          className="btn"
+        <Button
+          label="อัปโหลดรูป"
+          icon={<ImagePlus size={14} />}
+          size="sm"
+          tooltip="อัปโหลดรูปจากเครื่อง (แปลงเป็น data URI อัตโนมัติ)"
           onClick={() => fileRef.current?.click()}
-          title="อัปโหลดรูปจากเครื่อง (แปลงเป็น data URI อัตโนมัติ)"
-        >
-          <ImagePlus size={14} /> อัปโหลดรูป
-        </button>
+        />
         {allowIconPicker && (
-          <button className="btn" onClick={() => openIconPicker(node._uid, prop)} title="เลือกจาก Lucide Icons">
-            <Shapes size={14} /> Lucide Icons
-          </button>
+          <Button
+            label="Lucide Icons"
+            icon={<Shapes size={14} />}
+            size="sm"
+            tooltip="เลือกจาก Lucide Icons"
+            onClick={() => openIconPicker(node._uid, prop)}
+          />
         )}
       </div>
       <input
@@ -85,9 +91,7 @@ function ActionEditor({ node }: { node: AnyNode }) {
     <div className="group">
       <div className="group-title">Action {required ? '' : '(ไม่บังคับ)'}</div>
       {!action && !required ? (
-        <button className="btn" onClick={() => setAction({ type: 'uri', label: '', uri: 'https://' })}>
-          + เพิ่ม action
-        </button>
+        <Button label="+ เพิ่ม action" size="sm" onClick={() => setAction({ type: 'uri', label: '', uri: 'https://' })} />
       ) : (
         <>
           <SelectField
@@ -108,9 +112,7 @@ function ActionEditor({ node }: { node: AnyNode }) {
             <TextField label="Data" value={action?.data ?? ''} onCommit={(v) => setAction({ data: v })} />
           )}
           {!required && (
-            <button className="btn danger" onClick={() => updateNode(node._uid, { action: null })}>
-              ลบ action
-            </button>
+            <Button label="ลบ action" variant="destructive" size="sm" onClick={() => updateNode(node._uid, { action: null })} />
           )}
         </>
       )}
@@ -151,13 +153,13 @@ function BubbleInspector({ node }: { node: BubbleNode }) {
         <div className="group-title">Blocks</div>
         <div className="btn-row wrap">
           {(['header', 'hero', 'body', 'footer'] as const).map((b) => (
-            <button
+            <Button
               key={b}
-              className={`btn${node[b] ? ' active' : ''}`}
+              label={node[b] ? `− ${b}` : `+ ${b}`}
+              variant={node[b] ? 'secondary' : 'ghost'}
+              size="sm"
               onClick={() => setBubbleBlock(node._uid, b, node[b] ? null : blockDefaults[b])}
-            >
-              {node[b] ? `− ${b}` : `+ ${b}`}
-            </button>
+            />
           ))}
         </div>
       </div>
@@ -198,26 +200,14 @@ export function Inspector() {
       </div>
       {!isRoot && (
         <div className="btn-row" style={{ padding: '8px 12px 0' }}>
-          <button className="btn" title="เลื่อนขึ้น/ซ้าย" onClick={() => moveNode(node._uid, -1)}>
-            <ArrowUp size={13} />
-          </button>
-          <button className="btn" title="เลื่อนลง/ขวา" onClick={() => moveNode(node._uid, 1)}>
-            <ArrowDown size={13} />
-          </button>
-          <button className="btn" title="ทำสำเนา" onClick={() => duplicateNode(node._uid)}>
-            <Copy size={13} />
-          </button>
-          <button className="btn danger" title="ลบ" onClick={() => removeNode(node._uid)}>
-            <Trash2 size={13} />
-          </button>
+          <IconButton label="เลื่อนขึ้น/ซ้าย" icon={<ArrowUp size={14} />} variant="ghost" size="sm" onClick={() => moveNode(node._uid, -1)} />
+          <IconButton label="เลื่อนลง/ขวา" icon={<ArrowDown size={14} />} variant="ghost" size="sm" onClick={() => moveNode(node._uid, 1)} />
+          <IconButton label="ทำสำเนา" icon={<Copy size={14} />} variant="ghost" size="sm" onClick={() => duplicateNode(node._uid)} />
+          <IconButton label="ลบ" icon={<Trash2 size={14} />} variant="destructive" size="sm" onClick={() => removeNode(node._uid)} />
         </div>
       )}
       <div className="inspector-body">
-        {node.type === 'carousel' && (
-          <button className="btn" onClick={addBubbleToCarousel}>
-            + เพิ่ม bubble ใน carousel
-          </button>
-        )}
+        {node.type === 'carousel' && <Button label="+ เพิ่ม bubble ใน carousel" size="sm" onClick={addBubbleToCarousel} />}
         {node.type === 'bubble' && <BubbleInspector node={node as BubbleNode} />}
 
         {node.type === 'box' && (

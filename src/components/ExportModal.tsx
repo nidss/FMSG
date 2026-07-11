@@ -1,12 +1,16 @@
 import React, { useMemo, useState } from 'react'
-import { Check, Copy, Download, X } from 'lucide-react'
+import { Check, Copy, Download } from 'lucide-react'
+import { Button } from '@astryxdesign/core/Button'
+import { TabList, Tab } from '@astryxdesign/core/TabList'
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput'
 import { useDesigner } from '../store'
 import { useUi } from '../uiStore'
 import { exportJs, exportJson, exportMessageJson } from '../flex/export'
 import { collectPlaceholders } from '../flex/binding'
 import { stripUids } from '../flex/uid'
+import { AppModal } from './AppModal'
 
-type Tab = 'json' | 'message' | 'js'
+type TabKey = 'json' | 'message' | 'js'
 
 export function ExportModal() {
   const modal = useUi((s) => s.modal)
@@ -14,7 +18,7 @@ export function ExportModal() {
   const root = useDesigner((s) => s.root)
   const altText = useDesigner((s) => s.altText)
   const dataText = useDesigner((s) => s.dataText)
-  const [tab, setTab] = useState<Tab>('json')
+  const [tab, setTab] = useState<TabKey>('json')
   const [applyData, setApplyData] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -54,50 +58,39 @@ export function ExportModal() {
   }
 
   return (
-    <div className="modal-overlay" onClick={() => setModal(null)}>
-      <div className="modal" style={{ width: 760, maxWidth: '95vw' }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <b>Export</b>
-          <button className="icon-btn" onClick={() => setModal(null)}>
-            <X size={16} />
-          </button>
-        </div>
-        <div className="tab-row">
-          <button className={`tab${tab === 'json' ? ' active' : ''}`} onClick={() => setTab('json')}>
-            JSON (contents)
-          </button>
-          <button className={`tab${tab === 'message' ? ' active' : ''}`} onClick={() => setTab('message')}>
-            JSON (message เต็ม)
-          </button>
-          <button className={`tab${tab === 'js' ? ' active' : ''}`} onClick={() => setTab('js')}>
-            JavaScript + bind()
-          </button>
-        </div>
+    <AppModal title="Export" width={780} onClose={() => setModal(null)}>
+      <div className="modal-stack">
+        <TabList value={tab} onChange={(v: any) => setTab(v)} size="sm">
+          <Tab value="json" label="JSON (contents)" />
+          <Tab value="message" label="JSON (message เต็ม)" />
+          <Tab value="js" label="JavaScript + bind()" />
+        </TabList>
         {tab !== 'js' && placeholders.length > 0 && (
-          <label className="field-row" style={{ padding: '6px 16px' }}>
-            <input type="checkbox" checked={applyData} onChange={(e) => setApplyData(e.target.checked)} />
-            <span>
-              แทนค่า {'{{...}}'} ด้วยข้อมูลจาก Data panel ({placeholders.join(', ')})
-              {applyData && !data && <b style={{ color: '#d33' }}> — JSON ใน Data panel ไม่ถูกต้อง</b>}
-            </span>
-          </label>
+          <CheckboxInput
+            label={`แทนค่า {{...}} ด้วยข้อมูลจาก Data panel (${placeholders.join(', ')})${applyData && !data ? ' — JSON ใน Data panel ไม่ถูกต้อง!' : ''}`}
+            value={applyData}
+            onChange={(c: boolean) => setApplyData(c)}
+            size="sm"
+          />
         )}
         {tab === 'js' && (
-          <div className="hint" style={{ padding: '6px 16px' }}>
+          <div className="hint">
             ได้ไฟล์ JS พร้อมฟังก์ชัน <code>buildFlexMessage(data)</code> — ส่งข้อมูลเข้าไปแล้วได้ message
             พร้อมส่งผ่าน Messaging API โดยไม่ต้องเขียนโค้ด bind เอง
           </div>
         )}
         <pre className="code-view">{content}</pre>
-        <div className="btn-row" style={{ padding: '0 16px 14px', justifyContent: 'flex-end' }}>
-          <button className="btn" onClick={download}>
-            <Download size={14} /> ดาวน์โหลด
-          </button>
-          <button className="btn primary" onClick={copy}>
-            {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? 'คัดลอกแล้ว' : 'คัดลอก'}
-          </button>
+        <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
+          <Button label="ดาวน์โหลด" icon={<Download size={14} />} size="sm" onClick={download} />
+          <Button
+            label={copied ? 'คัดลอกแล้ว' : 'คัดลอก'}
+            icon={copied ? <Check size={14} /> : <Copy size={14} />}
+            variant="primary"
+            size="sm"
+            onClick={copy}
+          />
         </div>
       </div>
-    </div>
+    </AppModal>
   )
 }

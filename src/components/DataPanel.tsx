@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { X } from 'lucide-react'
+import { IconButton } from '@astryxdesign/core/IconButton'
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput'
 import { useDesigner } from '../store'
 import { useUi } from '../uiStore'
 import { collectPlaceholders, lookup } from '../flex/binding'
@@ -31,16 +33,18 @@ export function DataPanel() {
     <div className="data-panel">
       <div className="panel-title">
         Data Source
-        <button className="icon-btn" style={{ marginLeft: 'auto' }} onClick={toggleData}>
-          <X size={14} />
-        </button>
-      </div>
-      <label className="field-row" style={{ padding: '4px 12px' }}>
-        <input type="checkbox" checked={bindingEnabled} onChange={(e) => setBindingEnabled(e.target.checked)} />
-        <span>
-          แสดงข้อมูลจริงใน preview (แทนค่า {'{{...}}'} )
+        <span style={{ marginLeft: 'auto' }}>
+          <IconButton label="ปิด Data panel" icon={<X size={14} />} variant="ghost" size="sm" onClick={toggleData} />
         </span>
-      </label>
+      </div>
+      <div style={{ padding: '4px 12px' }}>
+        <CheckboxInput
+          label={'แสดงข้อมูลจริงใน preview (แทนค่า {{...}})'}
+          value={bindingEnabled}
+          onChange={(c: boolean) => setBindingEnabled(c)}
+          size="sm"
+        />
+      </div>
       <textarea
         className="data-editor"
         value={draft ?? dataText}
