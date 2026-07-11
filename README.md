@@ -2,6 +2,8 @@
 
 Web app สำหรับออกแบบ [LINE Flex Message](https://developers.line.biz/en/docs/messaging-api/using-flex-messages/) แบบ visual — ทำงานคล้าย LINE Flex Message Simulator แต่แก้ไขแบบลากวางได้ พร้อม data binding และ export code ไปใช้ต่อได้ทันที
 
+🌐 **ใช้งานเลย:** https://nidss.github.io/FMSG/ · 📖 **เอกสารระบบฉบับเต็ม:** [docs/SYSTEM.md](docs/SYSTEM.md)
+
 ## ฟีเจอร์
 
 - 🖱️ **ลาก-วาง จัด layout** — ลาก component จาก palette ไปวางใน preview หรือ structure tree เห็นผลทันที มีเส้นบอกตำแหน่งที่จะแทรก
