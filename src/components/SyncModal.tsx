@@ -1,21 +1,20 @@
 import React, { useRef, useState } from 'react'
 import {
-  CloudDownload,
-  CloudUpload,
   Download,
   FileJson,
   FileUp,
   Folder,
   FolderOpen,
   HardDriveDownload,
+  Lock,
   RefreshCw,
-  Settings2,
+  Save,
+  Unlock,
   Upload,
 } from 'lucide-react'
 import { Button } from '@astryxdesign/core/Button'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { Banner } from '@astryxdesign/core/Banner'
-import { Collapsible } from '@astryxdesign/core/Collapsible'
 import { ClickableCard } from '@astryxdesign/core/ClickableCard'
 import { TabList, Tab } from '@astryxdesign/core/TabList'
 import { Divider } from '@astryxdesign/core/Divider'
@@ -25,20 +24,18 @@ import { importTemplates, loadUserTemplates, makeBundle, parseBundle } from '../
 import { parsePastedFlex } from '../flex/importJson'
 import {
   downloadFileContent,
-  downloadFromDrive,
   getAccessToken,
   listJsonFiles,
   uploadJsonToDrive,
-  uploadToDrive,
-  DRIVE_FILE_NAME,
   FOLDER_MIME,
   type DriveFileInfo,
 } from '../gdrive'
 import { exportMessageJson } from '../flex/export'
 import { AppModal } from './AppModal'
 
-// Prefilled from the folder the user shared; editable in the UI.
+// Prefilled from the folder the user shared; editable in settings.
 const DEFAULT_FOLDER_ID = '1WoUcUOa_uCV53GKPGmyeUOpviRmQtStB'
+const SETTINGS_PIN = '6237'
 
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'error'; msg?: string }
 
@@ -61,9 +58,8 @@ export function SyncModal() {
   const setAltText = useDesigner((s) => s.setAltText)
   const root = useDesigner((s) => s.root)
   const altText = useDesigner((s) => s.altText)
-  const setDataText = useDesigner((s) => s.setDataText)
   const fileRef = useRef<HTMLInputElement>(null)
-  const [tab, setTab] = useState<'file' | 'drive'>('drive')
+  const [tab, setTab] = useState<'drive' | 'file' | 'settings'>('drive')
   const [designName, setDesignName] = useState('')
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
   const [clientId, setClientId] = useState(() => localStorage.getItem('fmsg-gdrive-clientid') ?? '')
@@ -71,11 +67,23 @@ export function SyncModal() {
   const [driveFiles, setDriveFiles] = useState<DriveFileInfo[] | null>(null)
   /** breadcrumb path inside the browser; [0] is the configured root folder */
   const [drivePath, setDrivePath] = useState<Array<{ id: string; name: string }>>([])
+  // settings tab PIN gate
+  const [unlocked, setUnlocked] = useState(false)
+  const [pin, setPin] = useState('')
+  const [pinError, setPinError] = useState(false)
 
   if (modal !== 'sync') return null
 
   const count = loadUserTemplates().length
-  const connected = !!clientId.trim()
+
+  const close = () => {
+    setModal(null)
+    // re-lock settings for the next time the modal opens
+    setUnlocked(false)
+    setPin('')
+    setPinError(false)
+    setStatus({ kind: 'idle' })
+  }
 
   const exportFile = () => {
     const bundle = makeBundle()
@@ -108,30 +116,30 @@ export function SyncModal() {
   }
 
   const requireClientId = () => {
-    saveDriveSettings()
     if (!clientId.trim()) {
-      setStatus({ kind: 'error', msg: 'ใส่ Google OAuth Client ID ในส่วน "การเชื่อมต่อ" ก่อน (มีวิธีตั้งค่าอยู่ข้างใน)' })
+      setStatus({ kind: 'error', msg: 'ยังไม่ได้ตั้งค่าการเชื่อมต่อ Google Drive — ไปที่แท็บ "ตั้งค่า" ก่อน' })
       return false
     }
     return true
   }
 
-  const drivePush = async () => {
-    if (!requireClientId()) return
-    setStatus({ kind: 'busy', msg: 'กำลังเชื่อมต่อ Google…' })
-    try {
-      const token = await getAccessToken(clientId.trim())
-      setStatus({ kind: 'busy', msg: 'กำลังอัปโหลดขึ้น Drive…' })
-      await uploadToDrive(token, folderId.trim(), JSON.stringify(makeBundle(), null, 2))
-      setStatus({ kind: 'ok', msg: `อัปโหลด ${count} templates ขึ้น Drive (${DRIVE_FILE_NAME}) เรียบร้อย` })
-    } catch (e: any) {
-      setStatus({ kind: 'error', msg: String(e.message ?? e) })
+  const tryUnlock = () => {
+    if (pin === SETTINGS_PIN) {
+      setUnlocked(true)
+      setPin('')
+      setPinError(false)
+    } else {
+      setPinError(true)
     }
   }
 
   const driveSaveCurrent = async () => {
     if (!requireClientId()) return
-    let name = designName.trim() || altText.trim() || 'flex-design'
+    if (!designName.trim()) {
+      setStatus({ kind: 'error', msg: 'กรอกชื่อไฟล์ก่อนถึงจะเซฟได้' })
+      return
+    }
+    let name = designName.trim()
     if (!name.toLowerCase().endsWith('.json')) name += '.json'
     setStatus({ kind: 'busy', msg: `กำลังเซฟ ${name} ขึ้น Drive…` })
     try {
@@ -185,38 +193,21 @@ export function SyncModal() {
       loadRoot(flex.contents)
       if (flex.altText) setAltText(flex.altText)
       setStatus({ kind: 'ok', msg: `เปิด "${f.name}" เข้า editor แล้ว` })
-      setTimeout(() => setModal(null), 700)
+      setTimeout(close, 700)
     } catch (e: any) {
       setStatus({ kind: 'error', msg: `เปิด "${f.name}" ไม่สำเร็จ: ${e.message ?? e}` })
-    }
-  }
-
-  const drivePull = async () => {
-    if (!requireClientId()) return
-    setStatus({ kind: 'busy', msg: 'กำลังเชื่อมต่อ Google…' })
-    try {
-      const token = await getAccessToken(clientId.trim())
-      setStatus({ kind: 'busy', msg: 'กำลังดึงจาก Drive…' })
-      const text = await downloadFromDrive(token, folderId.trim())
-      if (text === null) {
-        setStatus({ kind: 'error', msg: `ยังไม่มีไฟล์ ${DRIVE_FILE_NAME} ในโฟลเดอร์นี้ — กด "เก็บขึ้น Drive" จากเครื่องที่มี template ก่อน` })
-        return
-      }
-      const { added, updated } = importTemplates(parseBundle(text))
-      setStatus({ kind: 'ok', msg: `Sync จาก Drive สำเร็จ — เพิ่มใหม่ ${added}, อัปเดตทับ ${updated}` })
-    } catch (e: any) {
-      setStatus({ kind: 'error', msg: String(e.message ?? e) })
     }
   }
 
   const busy = status.kind === 'busy'
 
   return (
-    <AppModal title="Sync" subtitle={`template ที่บันทึกไว้ในเครื่องนี้: ${count} รายการ`} width={620} onClose={() => setModal(null)}>
+    <AppModal title="Sync" subtitle={`template ที่บันทึกไว้ในเครื่องนี้: ${count} รายการ`} width={620} onClose={close}>
       <div className="modal-stack">
         <TabList value={tab} onChange={(v: any) => { setTab(v); setStatus({ kind: 'idle' }) }} size="sm">
           <Tab value="drive" label="Google Drive" />
           <Tab value="file" label="ไฟล์ (Export / Import)" />
+          <Tab value="settings" label="ตั้งค่า" />
         </TabList>
 
         {tab === 'file' && (
@@ -255,64 +246,30 @@ export function SyncModal() {
 
         {tab === 'drive' && (
           <div className="modal-stack">
-            <Collapsible
-              trigger={connected ? '⚙️ การเชื่อมต่อ — ตั้งค่าแล้ว (กดเพื่อแก้ไข)' : '⚙️ การเชื่อมต่อ — ยังไม่ได้ตั้งค่า (กดเพื่อเริ่ม)'}
-              defaultIsOpen={!connected}
-            >
-              <div className="modal-stack" style={{ paddingTop: 8 }}>
-                <TextInput
-                  label="Google OAuth Client ID"
-                  value={clientId}
-                  placeholder="xxxxxxxx.apps.googleusercontent.com"
-                  onChange={setClientId}
-                  size="sm"
-                />
-                <TextInput label="Drive Folder ID (จากลิงก์โฟลเดอร์)" value={folderId} onChange={setFolderId} size="sm" />
-                <div className="hint sync-setup-guide">
-                  <b>วิธีตั้งค่า (ครั้งเดียว ~5 นาที):</b>
-                  <ol>
-                    <li>เข้า <b>console.cloud.google.com</b> → สร้าง project → เปิดใช้ <b>Google Drive API</b></li>
-                    <li>Credentials → <b>Create OAuth client ID</b> → เลือก <b>Web application</b></li>
-                    <li>เพิ่ม Authorized JavaScript origins: <code>https://nidss.github.io</code></li>
-                    <li>Consent screen: เลือก External + <b>เพิ่มอีเมลตัวเองเป็น Test user</b></li>
-                    <li>คัดลอก Client ID มาวางด้านบน — ระบบจะจำไว้ให้</li>
-                  </ol>
-                </div>
-              </div>
-            </Collapsible>
-
-            <Divider />
-
-            <SectionTitle
-              icon={<RefreshCw size={16} />}
-              title="Sync คลัง template"
-              desc={`เก็บ template ทั้งชุดเป็นไฟล์ ${DRIVE_FILE_NAME} — เครื่องอื่นกดดึงกลับได้`}
-            />
-            <div className="btn-row wrap">
-              <Button label="เก็บขึ้น Drive" icon={<CloudUpload size={14} />} variant="primary" size="sm" isDisabled={busy} onClick={drivePush} />
-              <Button label="ดึงจาก Drive (merge)" icon={<CloudDownload size={14} />} size="sm" isDisabled={busy} onClick={drivePull} />
-            </div>
-
-            <Divider />
-
-            <SectionTitle icon={<FileUp size={16} />} title="เซฟงานที่เปิดอยู่" desc="เก็บงานปัจจุบันเป็นไฟล์ .json ของตัวเองในโฟลเดอร์ (ชื่อซ้ำ = อัปเดตทับ)" />
+            <SectionTitle icon={<FileUp size={16} />} title="เซฟงานที่ทำอยู่" desc="เก็บงานปัจจุบันเป็นไฟล์ .json ของตัวเองในโฟลเดอร์ (ชื่อซ้ำ = อัปเดตทับ)" />
             <div className="save-design-row">
               <div style={{ flex: 1, minWidth: 0 }} onKeyDown={(e) => e.key === 'Enter' && driveSaveCurrent()}>
                 <TextInput
                   label="ชื่อไฟล์"
                   isLabelHidden
                   value={designName}
-                  placeholder={`ชื่อไฟล์ (ว่าง = "${(altText.trim() || 'flex-design').slice(0, 28)}.json")`}
+                  placeholder="กรอกชื่อไฟล์ (จำเป็น)"
                   onChange={setDesignName}
                   size="sm"
                 />
               </div>
-              <Button label="เซฟขึ้น Drive" icon={<HardDriveDownload size={14} />} size="sm" isDisabled={busy} onClick={driveSaveCurrent} />
+              <Button
+                label="เซฟขึ้น Drive"
+                icon={<HardDriveDownload size={14} />}
+                size="sm"
+                isDisabled={busy || !designName.trim()}
+                onClick={driveSaveCurrent}
+              />
             </div>
 
             <Divider />
 
-            <SectionTitle icon={<FolderOpen size={16} />} title="ไฟล์ในโฟลเดอร์" desc="เปิดงานหรือชุด template ที่เก็บไว้ — เข้าโฟลเดอร์ย่อยได้" />
+            <SectionTitle icon={<FolderOpen size={16} />} title="ไฟล์ใน Drive" desc="เปิดงานหรือชุด template ที่เก็บไว้ใน Drive" />
             {!driveFiles && (
               <div>
                 <Button label="เรียกดูไฟล์" icon={<FolderOpen size={14} />} size="sm" isDisabled={busy} onClick={driveBrowse} />
@@ -361,6 +318,68 @@ export function SyncModal() {
                   </div>
                 )}
                 <div className="hint">คลิกไฟล์เพื่อเปิด — ชุด template จะ merge เข้าคลัง / flex JSON เดี่ยวจะเปิดเข้า editor</div>
+              </>
+            )}
+          </div>
+        )}
+
+        {tab === 'settings' && (
+          <div className="modal-stack">
+            {!unlocked ? (
+              <>
+                <SectionTitle icon={<Lock size={16} />} title="การตั้งค่าถูกล็อกไว้" desc="ใส่รหัสเพื่อแก้ไขการเชื่อมต่อ Google Drive" />
+                <div className="save-design-row">
+                  <div style={{ flex: 1, minWidth: 0 }} onKeyDown={(e) => e.key === 'Enter' && tryUnlock()}>
+                    <TextInput
+                      label="รหัส"
+                      isLabelHidden
+                      type="password"
+                      value={pin}
+                      placeholder="ใส่รหัส"
+                      onChange={(v: string) => {
+                        setPin(v)
+                        setPinError(false)
+                      }}
+                      status={pinError ? { type: 'error', message: 'รหัสไม่ถูกต้อง' } : undefined}
+                      size="sm"
+                    />
+                  </div>
+                  <Button label="ปลดล็อก" icon={<Unlock size={14} />} variant="primary" size="sm" isDisabled={!pin} onClick={tryUnlock} />
+                </div>
+              </>
+            ) : (
+              <>
+                <SectionTitle icon={<Unlock size={16} />} title="การเชื่อมต่อ Google Drive" desc="ค่าถูกเก็บไว้ใน browser เครื่องนี้เท่านั้น" />
+                <TextInput
+                  label="Google OAuth Client ID"
+                  value={clientId}
+                  placeholder="xxxxxxxx.apps.googleusercontent.com"
+                  onChange={setClientId}
+                  size="sm"
+                />
+                <TextInput label="Drive Folder ID (จากลิงก์โฟลเดอร์)" value={folderId} onChange={setFolderId} size="sm" />
+                <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
+                  <Button
+                    label="บันทึกการตั้งค่า"
+                    icon={<Save size={14} />}
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      saveDriveSettings()
+                      setStatus({ kind: 'ok', msg: 'บันทึกการตั้งค่าแล้ว' })
+                    }}
+                  />
+                </div>
+                <div className="hint sync-setup-guide">
+                  <b>วิธีตั้งค่า (ครั้งเดียว ~5 นาที):</b>
+                  <ol>
+                    <li>เข้า <b>console.cloud.google.com</b> → สร้าง project → เปิดใช้ <b>Google Drive API</b></li>
+                    <li>Credentials → <b>Create OAuth client ID</b> → เลือก <b>Web application</b></li>
+                    <li>เพิ่ม Authorized JavaScript origins: <code>https://nidss.github.io</code></li>
+                    <li>Consent screen: เลือก External + <b>เพิ่มอีเมลตัวเองเป็น Test user</b></li>
+                    <li>คัดลอก Client ID มาวางด้านบน แล้วกด "บันทึกการตั้งค่า"</li>
+                  </ol>
+                </div>
               </>
             )}
           </div>
