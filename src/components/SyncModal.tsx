@@ -1,8 +1,18 @@
 import React, { useRef, useState } from 'react'
-import { CloudDownload, CloudUpload, Download, Upload, X } from 'lucide-react'
+import { CloudDownload, CloudUpload, Download, FileJson, FolderOpen, RefreshCw, Upload, X } from 'lucide-react'
 import { useUi } from '../uiStore'
+import { useDesigner } from '../store'
 import { importTemplates, loadUserTemplates, makeBundle, parseBundle } from '../flex/userTemplates'
-import { downloadFromDrive, getAccessToken, uploadToDrive, DRIVE_FILE_NAME } from '../gdrive'
+import { parsePastedFlex } from '../flex/importJson'
+import {
+  downloadFileContent,
+  downloadFromDrive,
+  getAccessToken,
+  listJsonFiles,
+  uploadToDrive,
+  DRIVE_FILE_NAME,
+  type DriveFileInfo,
+} from '../gdrive'
 
 // Prefilled from the folder the user shared; editable in the UI.
 const DEFAULT_FOLDER_ID = '1WoUcUOa_uCV53GKPGmyeUOpviRmQtStB'
@@ -12,10 +22,13 @@ type Status = { kind: 'idle' | 'busy' | 'ok' | 'error'; msg?: string }
 export function SyncModal() {
   const modal = useUi((s) => s.modal)
   const setModal = useUi((s) => s.setModal)
+  const loadRoot = useDesigner((s) => s.loadRoot)
+  const setAltText = useDesigner((s) => s.setAltText)
   const fileRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
   const [clientId, setClientId] = useState(() => localStorage.getItem('fmsg-gdrive-clientid') ?? '')
   const [folderId, setFolderId] = useState(() => localStorage.getItem('fmsg-gdrive-folder') ?? DEFAULT_FOLDER_ID)
+  const [driveFiles, setDriveFiles] = useState<DriveFileInfo[] | null>(null)
 
   if (modal !== 'sync') return null
 
@@ -65,6 +78,50 @@ export function SyncModal() {
       setStatus({ kind: 'ok', msg: `อัปโหลด ${count} templates ขึ้น Drive (${DRIVE_FILE_NAME}) เรียบร้อย` })
     } catch (e: any) {
       setStatus({ kind: 'error', msg: String(e.message ?? e) })
+    }
+  }
+
+  const driveBrowse = async () => {
+    saveDriveSettings()
+    if (!clientId.trim()) {
+      setStatus({ kind: 'error', msg: 'ใส่ Google OAuth Client ID ก่อน (ดูวิธีสร้างด้านล่าง)' })
+      return
+    }
+    setStatus({ kind: 'busy', msg: 'กำลังโหลดรายชื่อไฟล์…' })
+    try {
+      const token = await getAccessToken(clientId.trim())
+      const files = await listJsonFiles(token, folderId.trim())
+      setDriveFiles(files)
+      setStatus(
+        files.length
+          ? { kind: 'idle' }
+          : { kind: 'error', msg: 'ไม่พบไฟล์ .json ในโฟลเดอร์นี้' },
+      )
+    } catch (e: any) {
+      setStatus({ kind: 'error', msg: String(e.message ?? e) })
+    }
+  }
+
+  const openDriveFile = async (f: DriveFileInfo) => {
+    setStatus({ kind: 'busy', msg: `กำลังเปิด ${f.name}…` })
+    try {
+      const token = await getAccessToken(clientId.trim())
+      const text = await downloadFileContent(token, f.id)
+      // ลองเป็นชุด template ก่อน แล้วค่อยลองเป็น flex message เดี่ยว
+      try {
+        const { added, updated } = importTemplates(parseBundle(text))
+        setStatus({ kind: 'ok', msg: `"${f.name}" เป็นชุด template — เพิ่มใหม่ ${added}, อัปเดตทับ ${updated} (ดูที่ปุ่ม Templates)` })
+        return
+      } catch {
+        /* not a bundle — try flex json */
+      }
+      const flex = parsePastedFlex(text)
+      loadRoot(flex.contents)
+      if (flex.altText) setAltText(flex.altText)
+      setStatus({ kind: 'ok', msg: `เปิด "${f.name}" เข้า editor แล้ว` })
+      setTimeout(() => setModal(null), 700)
+    } catch (e: any) {
+      setStatus({ kind: 'error', msg: `เปิด "${f.name}" ไม่สำเร็จ: ${e.message ?? e}` })
     }
   }
 
@@ -145,7 +202,26 @@ export function SyncModal() {
               <button className="btn" disabled={status.kind === 'busy'} onClick={drivePull}>
                 <CloudDownload size={14} /> ดึงจาก Drive (merge)
               </button>
+              <button className="btn" disabled={status.kind === 'busy'} onClick={driveBrowse}>
+                {driveFiles ? <RefreshCw size={14} /> : <FolderOpen size={14} />} เปิดไฟล์จาก Drive…
+              </button>
             </div>
+            {driveFiles && driveFiles.length > 0 && (
+              <div className="drive-file-list">
+                {driveFiles.map((f) => (
+                  <button key={f.id} className="drive-file" onClick={() => openDriveFile(f)} disabled={status.kind === 'busy'}>
+                    <FileJson size={14} />
+                    <span className="drive-file-name">{f.name}</span>
+                    <span className="drive-file-time">{new Date(f.modifiedTime).toLocaleString('th-TH')}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {driveFiles && driveFiles.length > 0 && (
+              <div className="hint">
+                คลิกไฟล์เพื่อเปิด — ถ้าเป็นชุด template จะ merge เข้าคลัง ถ้าเป็น flex JSON เดี่ยวจะเปิดเข้า editor
+              </div>
+            )}
             <details>
               <summary style={{ cursor: 'pointer', fontSize: 12 }}>วิธีตั้งค่า (ทำครั้งเดียว ~5 นาที)</summary>
               <div className="hint" style={{ paddingTop: 6 }}>

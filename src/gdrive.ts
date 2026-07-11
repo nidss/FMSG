@@ -111,9 +111,32 @@ export async function uploadToDrive(token: string, folderId: string, content: st
 export async function downloadFromDrive(token: string, folderId: string): Promise<string | null> {
   const existing = await findTemplateFile(token, folderId)
   if (!existing) return null
+  return downloadFileContent(token, existing.id)
+}
+
+export interface DriveFileInfo {
+  id: string
+  name: string
+  modifiedTime: string
+  size?: string
+}
+
+/** List JSON files inside the folder, newest first. */
+export async function listJsonFiles(token: string, folderId: string): Promise<DriveFileInfo[]> {
+  const q = encodeURIComponent(
+    `'${folderId}' in parents and trashed=false and (mimeType='application/json' or name contains '.json')`,
+  )
   const res = await driveFetch(
     token,
-    `https://www.googleapis.com/drive/v3/files/${existing.id}?alt=media&supportsAllDrives=true`,
+    `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=modifiedTime desc&pageSize=50&fields=files(id,name,modifiedTime,size)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+  )
+  return (await res.json()).files ?? []
+}
+
+export async function downloadFileContent(token: string, fileId: string): Promise<string> {
+  const res = await driveFetch(
+    token,
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
   )
   return res.text()
 }
