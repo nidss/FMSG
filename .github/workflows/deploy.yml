@@ -39,5 +39,24 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # If Pages is still set to "Deploy from a branch", GitHub runs its own
+      # legacy build for every push, racing this workflow and overwriting the
+      # site with raw sources when it finishes last. Wait it out so our built
+      # deployment always lands last. (Switching Pages source to "GitHub
+      # Actions" makes this a no-op.)
+      - name: Wait for legacy branch-based Pages build to finish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 30); do
+            status=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runs?head_sha=${{ github.sha }}" \
+              | jq -r '[.workflow_runs[] | select(.path == "dynamic/pages/pages-build-deployment")][0].status // "none"')
+            echo "legacy pages build status: $status"
+            if [ "$status" = "none" ] || [ "$status" = "completed" ]; then
+              break
+            fi
+            sleep 10
+          done
       - id: deployment
         uses: actions/deploy-pages@v4
