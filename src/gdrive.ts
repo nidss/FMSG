@@ -63,11 +63,14 @@ async function driveFetch(token: string, url: string, init?: RequestInit): Promi
   return res
 }
 
-export async function findTemplateFile(
+export async function findFileByName(
   token: string,
   folderId: string,
+  name: string,
 ): Promise<{ id: string; modifiedTime: string } | null> {
-  const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and '${folderId}' in parents and trashed=false`)
+  const q = encodeURIComponent(
+    `name='${name.replace(/'/g, "\\'")}' and '${folderId}' in parents and trashed=false`,
+  )
   const res = await driveFetch(
     token,
     `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
@@ -76,9 +79,18 @@ export async function findTemplateFile(
   return data.files?.[0] ?? null
 }
 
-/** Create or update fmsg-templates.json inside the folder. Returns the file id. */
-export async function uploadToDrive(token: string, folderId: string, content: string): Promise<string> {
-  const existing = await findTemplateFile(token, folderId)
+export function findTemplateFile(token: string, folderId: string) {
+  return findFileByName(token, folderId, DRIVE_FILE_NAME)
+}
+
+/** Create or update a JSON file (by name) inside the folder. Returns the file id. */
+export async function uploadJsonToDrive(
+  token: string,
+  folderId: string,
+  fileName: string,
+  content: string,
+): Promise<string> {
+  const existing = await findFileByName(token, folderId, fileName)
   if (existing) {
     await driveFetch(
       token,
@@ -92,7 +104,7 @@ export async function uploadToDrive(token: string, folderId: string, content: st
     `--${boundary}`,
     'Content-Type: application/json; charset=UTF-8',
     '',
-    JSON.stringify({ name: DRIVE_FILE_NAME, parents: [folderId] }),
+    JSON.stringify({ name: fileName, parents: [folderId] }),
     `--${boundary}`,
     'Content-Type: application/json',
     '',
@@ -105,6 +117,11 @@ export async function uploadToDrive(token: string, folderId: string, content: st
     { method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body },
   )
   return (await res.json()).id
+}
+
+/** Create or update fmsg-templates.json inside the folder. Returns the file id. */
+export function uploadToDrive(token: string, folderId: string, content: string): Promise<string> {
+  return uploadJsonToDrive(token, folderId, DRIVE_FILE_NAME, content)
 }
 
 /** Download fmsg-templates.json content, or null if it doesn't exist yet. */

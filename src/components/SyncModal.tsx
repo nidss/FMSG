@@ -9,10 +9,12 @@ import {
   downloadFromDrive,
   getAccessToken,
   listJsonFiles,
+  uploadJsonToDrive,
   uploadToDrive,
   DRIVE_FILE_NAME,
   type DriveFileInfo,
 } from '../gdrive'
+import { exportMessageJson } from '../flex/export'
 
 // Prefilled from the folder the user shared; editable in the UI.
 const DEFAULT_FOLDER_ID = '1WoUcUOa_uCV53GKPGmyeUOpviRmQtStB'
@@ -24,7 +26,10 @@ export function SyncModal() {
   const setModal = useUi((s) => s.setModal)
   const loadRoot = useDesigner((s) => s.loadRoot)
   const setAltText = useDesigner((s) => s.setAltText)
+  const root = useDesigner((s) => s.root)
+  const altText = useDesigner((s) => s.altText)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [designName, setDesignName] = useState('')
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
   const [clientId, setClientId] = useState(() => localStorage.getItem('fmsg-gdrive-clientid') ?? '')
   const [folderId, setFolderId] = useState(() => localStorage.getItem('fmsg-gdrive-folder') ?? DEFAULT_FOLDER_ID)
@@ -76,6 +81,28 @@ export function SyncModal() {
       setStatus({ kind: 'busy', msg: 'กำลังอัปโหลดขึ้น Drive…' })
       await uploadToDrive(token, folderId.trim(), JSON.stringify(makeBundle(), null, 2))
       setStatus({ kind: 'ok', msg: `อัปโหลด ${count} templates ขึ้น Drive (${DRIVE_FILE_NAME}) เรียบร้อย` })
+    } catch (e: any) {
+      setStatus({ kind: 'error', msg: String(e.message ?? e) })
+    }
+  }
+
+  const driveSaveCurrent = async () => {
+    saveDriveSettings()
+    if (!clientId.trim()) {
+      setStatus({ kind: 'error', msg: 'ใส่ Google OAuth Client ID ก่อน (ดูวิธีสร้างด้านล่าง)' })
+      return
+    }
+    let name = designName.trim() || altText.trim() || 'flex-design'
+    if (!name.toLowerCase().endsWith('.json')) name += '.json'
+    setStatus({ kind: 'busy', msg: `กำลังเซฟ ${name} ขึ้น Drive…` })
+    try {
+      const token = await getAccessToken(clientId.trim())
+      await uploadJsonToDrive(token, folderId.trim(), name, exportMessageJson(root, altText))
+      setStatus({ kind: 'ok', msg: `เซฟ "${name}" ขึ้น Drive แล้ว — เปิดกลับได้จาก "เปิดไฟล์จาก Drive…"` })
+      if (driveFiles) {
+        // refresh the file list so the new file shows up
+        setDriveFiles(await listJsonFiles(token, folderId.trim()))
+      }
     } catch (e: any) {
       setStatus({ kind: 'error', msg: String(e.message ?? e) })
     }
@@ -204,6 +231,17 @@ export function SyncModal() {
               </button>
               <button className="btn" disabled={status.kind === 'busy'} onClick={driveBrowse}>
                 {driveFiles ? <RefreshCw size={14} /> : <FolderOpen size={14} />} เปิดไฟล์จาก Drive…
+              </button>
+            </div>
+            <div className="save-design-row">
+              <input
+                value={designName}
+                placeholder={`ชื่อไฟล์ของงานนี้ (ว่าง = "${(altText.trim() || 'flex-design').slice(0, 30)}.json")`}
+                onChange={(e) => setDesignName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && driveSaveCurrent()}
+              />
+              <button className="btn" disabled={status.kind === 'busy'} onClick={driveSaveCurrent} title="เซฟงานที่เปิดอยู่เป็นไฟล์ .json แยกในโฟลเดอร์ Drive">
+                <CloudUpload size={14} /> เซฟงานปัจจุบัน
               </button>
             </div>
             {driveFiles && driveFiles.length > 0 && (

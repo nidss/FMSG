@@ -778,6 +778,17 @@ select:focus {
 
 /* ---------- drive file list ---------- */
 
+.save-design-row {
+  display: flex;
+  gap: 6px;
+}
+
+.save-design-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+
 .drive-file-list {
   display: flex;
   flex-direction: column;
