@@ -13,6 +13,8 @@ Web app สำหรับออกแบบ [LINE Flex Message](https://develop
 - 🔗 **Data binding** — พิมพ์ `{{ชื่อตัวแปร}}` ในข้อความ/URL/label ใดก็ได้ แล้วผูกกับ JSON ใน Data panel — ทำ template ทีเดียว เปลี่ยนข้อมูลได้เรื่อยๆ ดูผลจริงใน preview ได้
 - 📤 **Export JSON / JS** — export ได้ทั้ง flex contents JSON, message JSON เต็ม, หรือไฟล์ JavaScript ที่มีฟังก์ชัน `buildFlexMessage(data)` พร้อม logic bind ในตัว เอาไปใช้กับ Messaging API ได้เลย
 - 🚀 **ส่งเข้า LINE ได้เลย** — ใส่ Channel Access Token + User ID แล้วกดส่ง (หรือคัดลอกคำสั่ง curl ไปรันเองถ้า browser ติด CORS)
+- 💾 **บันทึกเป็น template ของฉัน** — เซฟงาน (ดีไซน์ + altText + data source) เก็บใน browser เปิดใช้ซ้ำได้จากหน้า Templates
+- 🔄 **Sync ข้ามเครื่อง** — export/import template ทั้งชุดเป็นไฟล์ .json หรือ sync ผ่าน Google Drive (ใช้ OAuth Client ID ของคุณเอง เขียนไฟล์ `fmsg-templates.json` ลงโฟลเดอร์ที่กำหนด)
 - ↩️ Undo/Redo (Ctrl+Z / Ctrl+Shift+Z), ลบด้วยปุ่ม Delete, งานถูก autosave ใน browser
 
 ## เริ่มใช้งาน

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ModalKind = 'templates' | 'export' | 'send' | 'save' | null
+export type ModalKind = 'templates' | 'export' | 'send' | 'save' | 'sync' | null
 
 interface UiState {
   modal: ModalKind

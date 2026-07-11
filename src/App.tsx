@@ -7,6 +7,7 @@ import { PreviewPane } from './components/PreviewPane'
 import { DataPanel } from './components/DataPanel'
 import { TemplatesModal } from './components/TemplatesModal'
 import { SaveTemplateModal } from './components/SaveTemplateModal'
+import { SyncModal } from './components/SyncModal'
 import { ExportModal } from './components/ExportModal'
 import { SendModal } from './components/SendModal'
 import { IconPickerModal } from './components/IconPickerModal'
@@ -55,6 +56,7 @@ export default function App() {
       </div>
       <TemplatesModal />
       <SaveTemplateModal />
+      <SyncModal />
       <ExportModal />
       <SendModal />
       <IconPickerModal />

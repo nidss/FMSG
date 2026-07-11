@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   Braces,
+  CloudUpload,
   Database,
   FilePlus2,
   GalleryHorizontalEnd,
@@ -64,6 +65,9 @@ export function Toolbar() {
       </button>
       <button className="btn" onClick={() => setModal('save')} title="เซฟงานปัจจุบันเป็น template ของฉัน">
         <Save size={14} /> บันทึก
+      </button>
+      <button className="btn" onClick={() => setModal('sync')} title="Export/Import ไฟล์ และ sync ผ่าน Google Drive">
+        <CloudUpload size={14} /> Sync
       </button>
       {root.type === 'bubble' && (
         <button className="btn" onClick={convertToCarousel} title="แปลงเป็น carousel หลายใบ">

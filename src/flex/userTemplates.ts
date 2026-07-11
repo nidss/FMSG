@@ -50,3 +50,65 @@ export function removeUserTemplate(id: string): UserTemplate[] {
   persist(next)
   return next
 }
+
+// ---------- bundle export / import ----------
+
+export interface TemplateBundle {
+  app: 'fmsg-designer'
+  version: 1
+  exportedAt: string
+  templates: UserTemplate[]
+}
+
+export function makeBundle(): TemplateBundle {
+  return {
+    app: 'fmsg-designer',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    templates: loadUserTemplates(),
+  }
+}
+
+/** Parse a bundle (or a bare template array) and validate its shape. */
+export function parseBundle(text: string): UserTemplate[] {
+  const data = JSON.parse(text)
+  const list = Array.isArray(data) ? data : data?.templates
+  if (!Array.isArray(list)) throw new Error('ไม่ใช่ไฟล์ template ของแอปนี้')
+  for (const t of list) {
+    if (typeof t?.name !== 'string' || !t?.json?.type) {
+      throw new Error('โครงสร้างไฟล์ template ไม่ถูกต้อง')
+    }
+  }
+  return list as UserTemplate[]
+}
+
+/** Merge incoming templates into localStorage (same name = incoming wins). */
+export function importTemplates(incoming: UserTemplate[]): {
+  added: number
+  updated: number
+  list: UserTemplate[]
+} {
+  const list = loadUserTemplates()
+  let added = 0
+  let updated = 0
+  for (const t of incoming) {
+    const i = list.findIndex((x) => x.name === t.name)
+    const item: UserTemplate = {
+      name: t.name,
+      json: t.json,
+      altText: t.altText ?? 'Flex Message',
+      dataText: t.dataText ?? '',
+      savedAt: t.savedAt ?? new Date().toISOString(),
+      id: i >= 0 ? list[i].id : t.id || `t${Date.now().toString(36)}${added}`,
+    }
+    if (i >= 0) {
+      list[i] = item
+      updated++
+    } else {
+      list.push(item)
+      added++
+    }
+  }
+  persist(list)
+  return { added, updated, list }
+}
