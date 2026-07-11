@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   Braces,
+  ClipboardPaste,
   CloudUpload,
   Database,
   FilePlus2,
@@ -68,6 +69,9 @@ export function Toolbar() {
       </button>
       <button className="btn" onClick={() => setModal('sync')} title="Export/Import ไฟล์ และ sync ผ่าน Google Drive">
         <CloudUpload size={14} /> Sync
+      </button>
+      <button className="btn" onClick={() => setModal('paste')} title="วางโค้ด flex JSON จากที่อื่นมาแสดงและแก้ต่อ">
+        <ClipboardPaste size={14} /> วาง JSON
       </button>
       {root.type === 'bubble' && (
         <button className="btn" onClick={convertToCarousel} title="แปลงเป็น carousel หลายใบ">

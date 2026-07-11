@@ -8,6 +8,7 @@ import { DataPanel } from './components/DataPanel'
 import { TemplatesModal } from './components/TemplatesModal'
 import { SaveTemplateModal } from './components/SaveTemplateModal'
 import { SyncModal } from './components/SyncModal'
+import { PasteJsonModal } from './components/PasteJsonModal'
 import { ExportModal } from './components/ExportModal'
 import { SendModal } from './components/SendModal'
 import { IconPickerModal } from './components/IconPickerModal'
@@ -57,6 +58,7 @@ export default function App() {
       <TemplatesModal />
       <SaveTemplateModal />
       <SyncModal />
+      <PasteJsonModal />
       <ExportModal />
       <SendModal />
       <IconPickerModal />

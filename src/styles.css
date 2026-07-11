@@ -776,6 +776,48 @@ select:focus {
   font-size: 11.5px;
 }
 
+/* ---------- paste json modal ---------- */
+
+.paste-layout {
+  display: flex;
+  gap: 12px;
+  padding: 0 16px 14px;
+  min-height: 340px;
+  max-height: 70vh;
+}
+
+.paste-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paste-editor {
+  flex: 1;
+  min-height: 220px;
+  resize: none;
+  font-family: ui-monospace, 'Cascadia Code', Menlo, monospace;
+  font-size: 12px;
+  white-space: pre;
+}
+
+.paste-preview {
+  width: 340px;
+  flex-shrink: 0;
+  background: linear-gradient(160deg, #93b2de, #7d9ecf);
+  border-radius: 10px;
+  overflow: auto;
+  display: flex;
+  padding: 14px;
+}
+
+.paste-preview-scale {
+  transform: scale(0.8);
+  transform-origin: top left;
+}
+
 /* ---------- icon picker ---------- */
 
 .icon-grid {
