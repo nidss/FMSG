@@ -135,17 +135,20 @@ export interface DriveFileInfo {
   id: string
   name: string
   modifiedTime: string
+  mimeType?: string
   size?: string
 }
 
-/** List JSON files inside the folder, newest first. */
+export const FOLDER_MIME = 'application/vnd.google-apps.folder'
+
+/** List subfolders + JSON files inside the folder (folders first, files newest first). */
 export async function listJsonFiles(token: string, folderId: string): Promise<DriveFileInfo[]> {
   const q = encodeURIComponent(
-    `'${folderId}' in parents and trashed=false and (mimeType='application/json' or name contains '.json')`,
+    `'${folderId}' in parents and trashed=false and (mimeType='${FOLDER_MIME}' or mimeType='application/json' or name contains '.json')`,
   )
   const res = await driveFetch(
     token,
-    `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=modifiedTime desc&pageSize=50&fields=files(id,name,modifiedTime,size)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+    `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=folder,modifiedTime desc&pageSize=100&fields=files(id,name,mimeType,modifiedTime,size)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
   )
   return (await res.json()).files ?? []
 }

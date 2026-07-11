@@ -1,5 +1,15 @@
 import React, { useRef, useState } from 'react'
-import { CloudDownload, CloudUpload, Download, FileJson, FolderOpen, RefreshCw, Upload, X } from 'lucide-react'
+import {
+  CloudDownload,
+  CloudUpload,
+  Download,
+  FileJson,
+  Folder,
+  FolderOpen,
+  RefreshCw,
+  Upload,
+  X,
+} from 'lucide-react'
 import { useUi } from '../uiStore'
 import { useDesigner } from '../store'
 import { importTemplates, loadUserTemplates, makeBundle, parseBundle } from '../flex/userTemplates'
@@ -12,6 +22,7 @@ import {
   uploadJsonToDrive,
   uploadToDrive,
   DRIVE_FILE_NAME,
+  FOLDER_MIME,
   type DriveFileInfo,
 } from '../gdrive'
 import { exportMessageJson } from '../flex/export'
@@ -34,6 +45,8 @@ export function SyncModal() {
   const [clientId, setClientId] = useState(() => localStorage.getItem('fmsg-gdrive-clientid') ?? '')
   const [folderId, setFolderId] = useState(() => localStorage.getItem('fmsg-gdrive-folder') ?? DEFAULT_FOLDER_ID)
   const [driveFiles, setDriveFiles] = useState<DriveFileInfo[] | null>(null)
+  /** breadcrumb path inside the browser; [0] is the configured root folder */
+  const [drivePath, setDrivePath] = useState<Array<{ id: string; name: string }>>([])
 
   if (modal !== 'sync') return null
 
@@ -100,9 +113,28 @@ export function SyncModal() {
       await uploadJsonToDrive(token, folderId.trim(), name, exportMessageJson(root, altText))
       setStatus({ kind: 'ok', msg: `เซฟ "${name}" ขึ้น Drive แล้ว — เปิดกลับได้จาก "เปิดไฟล์จาก Drive…"` })
       if (driveFiles) {
-        // refresh the file list so the new file shows up
-        setDriveFiles(await listJsonFiles(token, folderId.trim()))
+        // refresh the current browse location so the new file shows up
+        const current = drivePath[drivePath.length - 1]?.id ?? folderId.trim()
+        setDriveFiles(await listJsonFiles(token, current))
       }
+    } catch (e: any) {
+      setStatus({ kind: 'error', msg: String(e.message ?? e) })
+    }
+  }
+
+  /** List a folder's contents and set it as the current browse location. */
+  const browseInto = async (path: Array<{ id: string; name: string }>) => {
+    setStatus({ kind: 'busy', msg: 'กำลังโหลดรายชื่อไฟล์…' })
+    try {
+      const token = await getAccessToken(clientId.trim())
+      const files = await listJsonFiles(token, path[path.length - 1].id)
+      setDriveFiles(files)
+      setDrivePath(path)
+      setStatus(
+        files.length
+          ? { kind: 'idle' }
+          : { kind: 'error', msg: 'โฟลเดอร์นี้ว่าง (ไม่มีโฟลเดอร์ย่อยหรือไฟล์ .json)' },
+      )
     } catch (e: any) {
       setStatus({ kind: 'error', msg: String(e.message ?? e) })
     }
@@ -114,19 +146,7 @@ export function SyncModal() {
       setStatus({ kind: 'error', msg: 'ใส่ Google OAuth Client ID ก่อน (ดูวิธีสร้างด้านล่าง)' })
       return
     }
-    setStatus({ kind: 'busy', msg: 'กำลังโหลดรายชื่อไฟล์…' })
-    try {
-      const token = await getAccessToken(clientId.trim())
-      const files = await listJsonFiles(token, folderId.trim())
-      setDriveFiles(files)
-      setStatus(
-        files.length
-          ? { kind: 'idle' }
-          : { kind: 'error', msg: 'ไม่พบไฟล์ .json ในโฟลเดอร์นี้' },
-      )
-    } catch (e: any) {
-      setStatus({ kind: 'error', msg: String(e.message ?? e) })
-    }
+    await browseInto([{ id: folderId.trim(), name: 'โฟลเดอร์หลัก' }])
   }
 
   const openDriveFile = async (f: DriveFileInfo) => {
@@ -244,20 +264,50 @@ export function SyncModal() {
                 <CloudUpload size={14} /> เซฟงานปัจจุบัน
               </button>
             </div>
-            {driveFiles && driveFiles.length > 0 && (
-              <div className="drive-file-list">
-                {driveFiles.map((f) => (
-                  <button key={f.id} className="drive-file" onClick={() => openDriveFile(f)} disabled={status.kind === 'busy'}>
-                    <FileJson size={14} />
-                    <span className="drive-file-name">{f.name}</span>
-                    <span className="drive-file-time">{new Date(f.modifiedTime).toLocaleString('th-TH')}</span>
-                  </button>
+            {driveFiles && drivePath.length > 0 && (
+              <div className="drive-breadcrumb">
+                {drivePath.map((p, i) => (
+                  <React.Fragment key={p.id}>
+                    {i > 0 && <span className="crumb-sep">›</span>}
+                    <button
+                      className="crumb"
+                      disabled={status.kind === 'busy' || i === drivePath.length - 1}
+                      onClick={() => browseInto(drivePath.slice(0, i + 1))}
+                    >
+                      {p.name}
+                    </button>
+                  </React.Fragment>
                 ))}
               </div>
             )}
             {driveFiles && driveFiles.length > 0 && (
+              <div className="drive-file-list">
+                {driveFiles.map((f) =>
+                  f.mimeType === FOLDER_MIME ? (
+                    <button
+                      key={f.id}
+                      className="drive-file drive-folder"
+                      onClick={() => browseInto([...drivePath, { id: f.id, name: f.name }])}
+                      disabled={status.kind === 'busy'}
+                    >
+                      <Folder size={14} />
+                      <span className="drive-file-name">{f.name}</span>
+                      <span className="drive-file-time">โฟลเดอร์ ›</span>
+                    </button>
+                  ) : (
+                    <button key={f.id} className="drive-file" onClick={() => openDriveFile(f)} disabled={status.kind === 'busy'}>
+                      <FileJson size={14} />
+                      <span className="drive-file-name">{f.name}</span>
+                      <span className="drive-file-time">{new Date(f.modifiedTime).toLocaleString('th-TH')}</span>
+                    </button>
+                  ),
+                )}
+              </div>
+            )}
+            {driveFiles && driveFiles.length > 0 && (
               <div className="hint">
-                คลิกไฟล์เพื่อเปิด — ถ้าเป็นชุด template จะ merge เข้าคลัง ถ้าเป็น flex JSON เดี่ยวจะเปิดเข้า editor
+                คลิกโฟลเดอร์เพื่อเข้าไปดูข้างใน · คลิกไฟล์เพื่อเปิด — ชุด template จะ merge เข้าคลัง / flex JSON
+                เดี่ยวจะเปิดเข้า editor
               </div>
             )}
             <details>
