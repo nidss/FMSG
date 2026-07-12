@@ -49,7 +49,7 @@ export function Palette() {
             onDragEnd={() => setDrag(null)}
             title={label}
           >
-            <Icon size={15} />
+            <Icon size={18} strokeWidth={1.8} />
             <span>{label}</span>
           </div>
         ))}

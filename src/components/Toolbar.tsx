@@ -37,7 +37,9 @@ export function Toolbar() {
   return (
     <div className="toolbar">
       <div className="brand">
-        <MessageCircle size={18} />
+        <span className="brand-logo">
+          <MessageCircle size={16} />
+        </span>
         <b>Flex Designer</b>
       </div>
       <IconButton label="Undo (Ctrl+Z)" icon={<Undo2 size={15} />} variant="ghost" size="sm" isDisabled={!canUndo} onClick={undo} />
