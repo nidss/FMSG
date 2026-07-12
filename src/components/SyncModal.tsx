@@ -32,9 +32,8 @@ import {
 } from '../gdrive'
 import { exportMessageJson } from '../flex/export'
 import { AppModal } from './AppModal'
+import { DEFAULT_GDRIVE_CLIENT_ID, DEFAULT_GDRIVE_FOLDER_ID } from '../config'
 
-// Prefilled from the folder the user shared; editable in settings.
-const DEFAULT_FOLDER_ID = '1WoUcUOa_uCV53GKPGmyeUOpviRmQtStB'
 const SETTINGS_PIN = '6237'
 
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'error'; msg?: string }
@@ -62,8 +61,13 @@ export function SyncModal() {
   const [tab, setTab] = useState<'drive' | 'file' | 'settings'>('drive')
   const [designName, setDesignName] = useState('')
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
-  const [clientId, setClientId] = useState(() => localStorage.getItem('fmsg-gdrive-clientid') ?? '')
-  const [folderId, setFolderId] = useState(() => localStorage.getItem('fmsg-gdrive-folder') ?? DEFAULT_FOLDER_ID)
+  // ค่า default ฝังมากับระบบ — localStorage ใช้เฉพาะกรณีเครื่องนั้นแก้ทับ
+  const [clientId, setClientId] = useState(
+    () => localStorage.getItem('fmsg-gdrive-clientid') || DEFAULT_GDRIVE_CLIENT_ID,
+  )
+  const [folderId, setFolderId] = useState(
+    () => localStorage.getItem('fmsg-gdrive-folder') || DEFAULT_GDRIVE_FOLDER_ID,
+  )
   const [driveFiles, setDriveFiles] = useState<DriveFileInfo[] | null>(null)
   /** breadcrumb path inside the browser; [0] is the configured root folder */
   const [drivePath, setDrivePath] = useState<Array<{ id: string; name: string }>>([])
@@ -111,8 +115,17 @@ export function SyncModal() {
   }
 
   const saveDriveSettings = () => {
-    localStorage.setItem('fmsg-gdrive-clientid', clientId.trim())
-    localStorage.setItem('fmsg-gdrive-folder', folderId.trim())
+    // เก็บเฉพาะค่าที่ต่างจาก default ที่ฝังในระบบ เพื่อให้เครื่องอื่นได้ default ใหม่เสมอ
+    if (clientId.trim() && clientId.trim() !== DEFAULT_GDRIVE_CLIENT_ID) {
+      localStorage.setItem('fmsg-gdrive-clientid', clientId.trim())
+    } else {
+      localStorage.removeItem('fmsg-gdrive-clientid')
+    }
+    if (folderId.trim() && folderId.trim() !== DEFAULT_GDRIVE_FOLDER_ID) {
+      localStorage.setItem('fmsg-gdrive-folder', folderId.trim())
+    } else {
+      localStorage.removeItem('fmsg-gdrive-folder')
+    }
   }
 
   const requireClientId = () => {
@@ -360,6 +373,18 @@ export function SyncModal() {
                 <TextInput label="Drive Folder ID (จากลิงก์โฟลเดอร์)" value={folderId} onChange={setFolderId} size="sm" />
                 <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
                   <Button
+                    label="กลับไปใช้ค่าของระบบ"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setClientId(DEFAULT_GDRIVE_CLIENT_ID)
+                      setFolderId(DEFAULT_GDRIVE_FOLDER_ID)
+                      localStorage.removeItem('fmsg-gdrive-clientid')
+                      localStorage.removeItem('fmsg-gdrive-folder')
+                      setStatus({ kind: 'ok', msg: 'กลับไปใช้ค่าที่ฝังมากับระบบแล้ว' })
+                    }}
+                  />
+                  <Button
                     label="บันทึกการตั้งค่า"
                     icon={<Save size={14} />}
                     variant="primary"
@@ -369,6 +394,10 @@ export function SyncModal() {
                       setStatus({ kind: 'ok', msg: 'บันทึกการตั้งค่าแล้ว' })
                     }}
                   />
+                </div>
+                <div className="hint">
+                  ค่าเชื่อมต่อถูกฝังมากับระบบแล้ว — เปิดเครื่องไหนก็ใช้ได้ทันทีโดยไม่ต้องตั้งค่า
+                  การแก้ในหน้านี้จะมีผลเฉพาะเครื่องนี้เท่านั้น
                 </div>
                 <div className="hint sync-setup-guide">
                   <b>วิธีตั้งค่า (ครั้งเดียว ~5 นาที):</b>
