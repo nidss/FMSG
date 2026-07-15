@@ -12,4 +12,4 @@ export const DEFAULT_GDRIVE_FOLDER_ID = '1WoUcUOa_uCV53GKPGmyeUOpviRmQtStB'
 // anyone with link – viewer) — สร้างได้ที่ Google Cloud Console → Credentials →
 // Create credentials → API key (แนะนำ restrict เป็น Drive API + HTTP referrer
 // https://nidss.github.io/*) แล้วนำมาวางที่นี่ หรือใส่ในแท็บ "ตั้งค่า" ของแอป
-export const DEFAULT_GDRIVE_API_KEY = ''
+export const DEFAULT_GDRIVE_API_KEY = 'AIzaSyCtpt_LdMj-L--_7C0PekC5PaN1xbvRRkM'
