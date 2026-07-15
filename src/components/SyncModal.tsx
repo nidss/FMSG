@@ -32,7 +32,7 @@ import {
 } from '../gdrive'
 import { exportMessageJson } from '../flex/export'
 import { AppModal } from './AppModal'
-import { DEFAULT_GDRIVE_CLIENT_ID, DEFAULT_GDRIVE_FOLDER_ID } from '../config'
+import { DEFAULT_GDRIVE_API_KEY, DEFAULT_GDRIVE_CLIENT_ID, DEFAULT_GDRIVE_FOLDER_ID } from '../config'
 
 const SETTINGS_PIN = '6237'
 
@@ -67,6 +67,9 @@ export function SyncModal() {
   )
   const [folderId, setFolderId] = useState(
     () => localStorage.getItem('fmsg-gdrive-folder') || DEFAULT_GDRIVE_FOLDER_ID,
+  )
+  const [apiKey, setApiKey] = useState(
+    () => localStorage.getItem('fmsg-gdrive-apikey') || DEFAULT_GDRIVE_API_KEY,
   )
   const [driveFiles, setDriveFiles] = useState<DriveFileInfo[] | null>(null)
   /** breadcrumb path inside the browser; [0] is the configured root folder */
@@ -125,6 +128,11 @@ export function SyncModal() {
       localStorage.setItem('fmsg-gdrive-folder', folderId.trim())
     } else {
       localStorage.removeItem('fmsg-gdrive-folder')
+    }
+    if (apiKey.trim() && apiKey.trim() !== DEFAULT_GDRIVE_API_KEY) {
+      localStorage.setItem('fmsg-gdrive-apikey', apiKey.trim())
+    } else {
+      localStorage.removeItem('fmsg-gdrive-apikey')
     }
   }
 
@@ -371,6 +379,13 @@ export function SyncModal() {
                   size="sm"
                 />
                 <TextInput label="Drive Folder ID (จากลิงก์โฟลเดอร์)" value={folderId} onChange={setFolderId} size="sm" />
+                <TextInput
+                  label="API Key (สำหรับให้ทุกคนเห็น Templates ออนไลน์โดยไม่ต้อง login)"
+                  value={apiKey}
+                  placeholder="AIzaSy..."
+                  onChange={setApiKey}
+                  size="sm"
+                />
                 <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
                   <Button
                     label="กลับไปใช้ค่าของระบบ"
@@ -379,8 +394,10 @@ export function SyncModal() {
                     onClick={() => {
                       setClientId(DEFAULT_GDRIVE_CLIENT_ID)
                       setFolderId(DEFAULT_GDRIVE_FOLDER_ID)
+                      setApiKey(DEFAULT_GDRIVE_API_KEY)
                       localStorage.removeItem('fmsg-gdrive-clientid')
                       localStorage.removeItem('fmsg-gdrive-folder')
+                      localStorage.removeItem('fmsg-gdrive-apikey')
                       setStatus({ kind: 'ok', msg: 'กลับไปใช้ค่าที่ฝังมากับระบบแล้ว' })
                     }}
                   />
